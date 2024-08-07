@@ -2,6 +2,7 @@ import express from 'express';
 import authRouter from "./auth.js";
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import cors from 'cors'; // Import the CORS middleware
 
 dotenv.config();
 const MONGO_URI = "mongodb+srv://jaafarbuis55:QtD63ykDPJvIh24Z@cluster0.hi9is74.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
@@ -16,6 +17,9 @@ mongoose
   .catch((err) => {
     console.log(err);
   });
+
+// Use CORS middleware to allow requests from other origins
+app.use(cors());
 
 app.get('/', (req, res) => {
   res.send('Hello World!');
