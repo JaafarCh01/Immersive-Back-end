@@ -1,7 +1,7 @@
 import express from "express";
-import UserModel from "./model.js";
+import UserModel from "../models/User.js";
 import passport from "passport";
-import jwt from "jsonwebtoken"; // Import jsonwebtoken library
+import jwt from "jsonwebtoken"; 
 import "./passport.js";
 
 const authRouter = express.Router();
