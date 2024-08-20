@@ -1,69 +1,69 @@
 import express from "express";
-import UserModel from "../models/User.js";
-import passport from "passport";
-import jwt from "jsonwebtoken"; 
-import "./passport.js";
+
+import { supabase } from "./app.js";
+import jwt from "jsonwebtoken";
 
 const authRouter = express.Router();
 
-authRouter.post("/register", async (req, res, next) => {
+authRouter.post("/register", async (req, res) => {
   try {
-    const user = await UserModel.create({
-      email: req.body.email,
-      password: req.body.password,
+    const { email, password } = req.body;
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
     });
 
+    if (error) throw error;
+
     return res.status(201).json({
-      message: "user created",
-      user: { email: user.email, id: user._id },
+      message: "User created",
+      user: data.user,
     });
   } catch (error) {
-    console.log(error);
+    console.error(error);
+    return res.status(500).json({ message: error.message });
   }
 });
 
-authRouter.post("/login", async (req, res, next) => {
+authRouter.post("/login", async (req, res) => {
   try {
-    //check if user exists
-    const userExists = await UserModel.findOne({ email: req.body.email });
-    if (!userExists)
-      return res.status(400).json({ message: "user does not exist" });
+    const { email, password } = req.body;
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-    // check if password is correct
-    if (userExists.password !== req.body.password)
-      return res.status(400).json({ message: "incorrect password" });
+    if (error) throw error;
 
-    // generate access token
     const accessToken = jwt.sign(
-      {
-        id: userExists._id,
-      },
-      "mySuperSecretKey12345", 
+      { id: data.user.id },
+      process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
 
-    return res
-      .status(200)
-      .json({ message: "user logged in", accessToken: accessToken });
+    return res.status(200).json({
+      message: "User logged in",
+      accessToken: accessToken,
+      user: data.user,
+    });
   } catch (error) {
-    console.log(error);
-    next(error);
+    console.error(error);
+    return res.status(500).json({ message: error.message });
   }
 });
 
-authRouter.get("/profile", async (req, res, next) => {
+authRouter.get("/profile", async (req, res) => {
   try {
-    // check if user exists
-    const userExists = await UserModel.findOne({ email: req.body.email });
-    if (!userExists)
-      return res.status(400).json({ message: "user does not exist" });
+    const { data: { user } } = await supabase.auth.getUser();
 
-    return res
-      .status(200)
-      .json({ userId: userExists._id, email: userExists.email });
+    if (!user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    return res.status(200).json({ userId: user.id, email: user.email });
   } catch (error) {
-    console.log(error);
-    next(error);
+    console.error(error);
+    return res.status(500).json({ message: error.message });
   }
 });
 
