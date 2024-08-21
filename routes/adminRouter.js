@@ -37,4 +37,81 @@ adminRouter.get('/test-results/:testId', async (req, res) => {
   }
 });
 
+adminRouter.get('/user-progress/:userId/detailed', async (req, res) => {
+  try {
+    const detailedProgress = await AdminDashboardService.viewDetailedUserProgress(req.params.userId);
+    res.status(200).json(detailedProgress);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Failed to fetch detailed user progress' });
+  }
+});
+
+adminRouter.get('/user-progress/:userId/course/:courseId', async (req, res) => {
+  try {
+    const courseProgress = await AdminDashboardService.viewDetailedCourseProgress(req.params.userId, req.params.courseId);
+    res.status(200).json(courseProgress);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Failed to fetch course progress' });
+  }
+});
+
+adminRouter.get('/users', async (req, res) => {
+  try {
+    const users = await AdminDashboardService.getAllUsers();
+    res.status(200).json(users);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Failed to fetch users' });
+  }
+});
+
+adminRouter.put('/users/:userId/role', async (req, res) => {
+  try {
+    const { role } = req.body;
+    const updatedUser = await AdminDashboardService.updateUserRole(req.params.userId, role);
+    res.status(200).json(updatedUser);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Failed to update user role' });
+  }
+});
+
+adminRouter.get('/activity', async (req, res) => {
+  try {
+    const { days } = req.query;
+    const activity = await AdminDashboardService.getPlatformActivity(days);
+    res.status(200).json(activity);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Failed to fetch platform activity' });
+  }
+});
+
+adminRouter.get('/content-overview', async (req, res) => {
+  try {
+    const overview = await AdminDashboardService.getContentOverview();
+    res.status(200).json(overview);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Failed to fetch content overview' });
+  }
+});
+
+adminRouter.put('/content-review/:contentType/:contentId', async (req, res) => {
+  try {
+    const { isApproved } = req.body;
+    const updatedContent = await AdminDashboardService.reviewContent(
+      req.params.contentId,
+      req.params.contentType,
+      isApproved
+    );
+    res.status(200).json(updatedContent);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Failed to review content' });
+  }
+});
+
 export default adminRouter;

@@ -3,6 +3,8 @@ import authRouter from "./auth.js";
 import dotenv from 'dotenv';
 import cors from 'cors'; 
 import { createClient } from '@supabase/supabase-js';
+import studentRouter from '../routes/studentRouter.js';
+import adminRouter from '../routes/adminRouter.js';
 
 dotenv.config();
 const supabaseUrl = "https://fkgrhxulpnjmtwswiudx.supabase.co";
@@ -66,6 +68,9 @@ app.get('/api/test-supabase', async (req, res) => {
     res.status(500).json({ message: 'Failed to connect to Supabase', error: error.message });
   }
 });
+
+app.use('/student', studentRouter);
+app.use('/api/admin', adminRouter);
 
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);

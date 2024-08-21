@@ -118,6 +118,37 @@ class Course {
 
     if (error) throw error;
   }
+
+  async getOverallProgress(userId) {
+    const progress = await StudentProgress.findByUserAndCourse(userId, this.id);
+    const lessons = await this.getLessons();
+    
+    const completedLessons = progress.filter(p => p.completed).length;
+    const totalLessons = lessons.length;
+    const completionPercentage = (completedLessons / totalLessons) * 100;
+
+    const quizScores = progress.map(p => p.quiz_score).filter(score => score !== null);
+    const averageQuizScore = quizScores.length > 0 ? quizScores.reduce((a, b) => a + b) / quizScores.length : null;
+
+    return {
+      completedLessons,
+      totalLessons,
+      completionPercentage,
+      averageQuizScore
+    };
+  }
+
+  async notifyStudents(message) {
+    const students = await this.getStudents();
+    const notifications = students.map(studentId => 
+      Notification.create({
+        user_id: studentId,
+        message: message,
+        type: 'course'
+      })
+    );
+    await Promise.all(notifications);
+  }
 }
 
 export default Course;

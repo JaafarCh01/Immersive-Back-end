@@ -98,6 +98,42 @@ class User {
 
     if (error) throw error;
   }
+
+  async getProgress(courseId) {
+    return StudentProgress.findByUserAndCourse(this.id, courseId);
+  }
+
+  async completeLesson(lessonId, courseId) {
+    const existingProgress = await StudentProgress.findByUserAndCourse(this.id, courseId);
+    const lessonProgress = existingProgress.find(p => p.lesson_id === lessonId);
+
+    if (lessonProgress) {
+      return await lessonProgress.update({ completed: true });
+    } else {
+      return await StudentProgress.create({
+        user_id: this.id,
+        course_id: courseId,
+        lesson_id: lessonId,
+        completed: true
+      });
+    }
+  }
+
+  async submitQuizScore(lessonId, courseId, score) {
+    const existingProgress = await StudentProgress.findByUserAndCourse(this.id, courseId);
+    const lessonProgress = existingProgress.find(p => p.lesson_id === lessonId);
+
+    if (lessonProgress) {
+      return await lessonProgress.update({ quiz_score: score });
+    } else {
+      return await StudentProgress.create({
+        user_id: this.id,
+        course_id: courseId,
+        lesson_id: lessonId,
+        quiz_score: score
+      });
+    }
+  }
 }
 
 export default User;

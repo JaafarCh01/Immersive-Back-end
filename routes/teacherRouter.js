@@ -26,6 +26,7 @@ teacherRouter.post('/courses', authMiddleware, roleMiddleware(['teacher']), asyn
   try {
     const course = await Course.create(req.body);
     await supabase.from('course_teachers').insert({ course_id: course.id, user_id: req.user.id });
+    await course.notifyStudents(`New course available: ${course.title}`);
     res.status(201).json(course);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -70,6 +71,7 @@ teacherRouter.put('/courses/:courseId/modules/:moduleId', authMiddleware, isTeac
 teacherRouter.post('/courses/:courseId/lessons', authMiddleware, isTeacherForCourse, async (req, res) => {
   try {
     const lesson = await Lesson.create({ ...req.body, course_id: req.course.id });
+    await lesson.notifyStudents(`New lesson available in ${req.course.title}: ${lesson.title}`);
     res.status(201).json(lesson);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -108,6 +110,7 @@ teacherRouter.delete('/courses/:courseId/lessons/:lessonId', authMiddleware, isT
 teacherRouter.post('/courses/:courseId/tests', authMiddleware, isTeacherForCourse, async (req, res) => {
   try {
     const test = await Test.create({ ...req.body, course_id: req.course.id });
+    await test.notifyStudents(`New test available in ${req.course.title}: ${test.title}`);
     res.status(201).json(test);
   } catch (error) {
     res.status(400).json({ message: error.message });

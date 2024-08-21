@@ -68,6 +68,11 @@ class Test {
     if (error) throw error;
     return data;
   }
+
+  async notifyStudents(message) {
+    const course = await this.getCourse();
+    await course.notifyStudents(message);
+  }
 }
 
 export default Test;

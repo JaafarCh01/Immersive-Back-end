@@ -106,6 +106,11 @@ class Lesson {
     if (error) throw error;
     return data.map(quiz => new Quiz(quiz));
   }
+
+  async notifyStudents(message) {
+    const course = await this.getCourse();
+    await course.notifyStudents(message);
+  }
 }
 
 export default Lesson;
