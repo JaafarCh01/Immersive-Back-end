@@ -40,6 +40,10 @@ app.get('/', (req, res) => {
   res.send('Hello World!');
 });
 
+import teacherRouter from '../routes/teacherRouter.js';
+
+app.use('/api/teacher', teacherRouter);
+
 app.use("/api/v1/auth", authRouter);
 
 app.get('/api/test-supabase', async (req, res) => {

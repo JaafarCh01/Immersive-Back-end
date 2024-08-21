@@ -1,17 +1,18 @@
 import { supabase } from '../src/app.js';
 
 class Lesson {
-  constructor({ id, title, content, course_id }) {
+  constructor({ id, title, content, course_id, module_id }) {
     this.id = id;
     this.title = title;
     this.content = content;
     this.course_id = course_id;
+    this.module_id = module_id;
   }
 
-  static async create({ title, content, course_id }) {
+  static async create({ title, content, course_id, module_id }) {
     const { data, error } = await supabase
       .from('lessons')
-      .insert({ title, content, course_id })
+      .insert({ title, content, course_id, module_id })
       .select()
       .single();
 
@@ -19,10 +20,10 @@ class Lesson {
     return new Lesson(data);
   }
 
-  static async createForCourse(courseId, { title, content }) {
+  static async createForCourse(courseId, { title, content, module_id }) {
     const { data, error } = await supabase
       .from('lessons')
-      .insert({ title, content, course_id: courseId })
+      .insert({ title, content, course_id: courseId, module_id })
       .select()
       .single();
 
@@ -82,6 +83,28 @@ class Lesson {
 
     if (error) throw error;
     return new Course(data);
+  }
+
+  async getModule() {
+    if (!this.module_id) return null;
+    const { data, error } = await supabase
+      .from('modules')
+      .select('*')
+      .eq('id', this.module_id)
+      .single();
+
+    if (error) throw error;
+    return data ? new Module(data) : null;
+  }
+
+  async getQuizzes() {
+    const { data, error } = await supabase
+      .from('quizzes')
+      .select('*')
+      .eq('lesson_id', this.id);
+
+    if (error) throw error;
+    return data.map(quiz => new Quiz(quiz));
   }
 }
 

@@ -1,37 +1,50 @@
+// models/Module.js
 import { supabase } from '../src/app.js';
+import Course from './Course.js';
 
-class Course {
-  constructor({ id, title, description }) {
+class Module {
+  constructor({ id, title, description, course_id }) {
     this.id = id;
     this.title = title;
     this.description = description;
+    this.course_id = course_id;
   }
 
-  static async create({ title, description }) {
+  static async create({ title, description, course_id }) {
     const { data, error } = await supabase
-      .from('courses')
-      .insert({ title, description })
+      .from('modules')
+      .insert({ title, description, course_id })
       .select()
       .single();
 
     if (error) throw error;
-    return new Course(data);
+    return new Module(data);
   }
 
   static async findById(id) {
     const { data, error } = await supabase
-      .from('courses')
+      .from('modules')
       .select('*')
       .eq('id', id)
       .single();
 
     if (error) throw error;
-    return data ? new Course(data) : null;
+    return data ? new Module(data) : null;
+  }
+
+  static async findByCourse(courseId) {
+    const { data, error } = await supabase
+      .from('modules')
+      .select('*')
+      .eq('course_id', courseId);
+
+    if (error) throw error;
+    return data.map(module => new Module(module));
   }
 
   async update({ title, description }) {
     const { data, error } = await supabase
-      .from('courses')
+      .from('modules')
       .update({ title, description })
       .eq('id', this.id)
       .select()
@@ -44,7 +57,7 @@ class Course {
 
   async delete() {
     const { error } = await supabase
-      .from('courses')
+      .from('modules')
       .delete()
       .eq('id', this.id);
 
@@ -55,26 +68,16 @@ class Course {
     const { data, error } = await supabase
       .from('lessons')
       .select('*')
-      .eq('course_id', this.id);
+      .eq('module_id', this.id);
 
     if (error) throw error;
     return data;
   }
 
-  async getStudents() {
-    const { data, error } = await supabase
-      .from('user_courses')
-      .select('user_id')
-      .eq('course_id', this.id);
-
-    if (error) throw error;
-    return data.map(item => item.user_id);
-  }
-
   async addLesson(lessonId) {
     const { error } = await supabase
       .from('lessons')
-      .update({ course_id: this.id })
+      .update({ module_id: this.id })
       .eq('id', lessonId);
 
     if (error) throw error;
@@ -83,41 +86,23 @@ class Course {
   async removeLesson(lessonId) {
     const { error } = await supabase
       .from('lessons')
-      .update({ course_id: null })
+      .update({ module_id: null })
       .eq('id', lessonId)
-      .eq('course_id', this.id);
+      .eq('module_id', this.id);
 
     if (error) throw error;
   }
 
-  async getModules() {
+  async getCourse() {
     const { data, error } = await supabase
-      .from('modules')
+      .from('courses')
       .select('*')
-      .eq('course_id', this.id);
+      .eq('id', this.course_id)
+      .single();
 
     if (error) throw error;
-    return data;
-  }
-
-  async addModule(moduleId) {
-    const { error } = await supabase
-      .from('modules')
-      .update({ course_id: this.id })
-      .eq('id', moduleId);
-
-    if (error) throw error;
-  }
-
-  async removeModule(moduleId) {
-    const { error } = await supabase
-      .from('modules')
-      .update({ course_id: null })
-      .eq('id', moduleId)
-      .eq('course_id', this.id);
-
-    if (error) throw error;
+    return data ? new Course(data) : null;
   }
 }
 
-export default Course;
+export default Module;
