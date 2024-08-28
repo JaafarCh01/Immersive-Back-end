@@ -6,7 +6,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import pkg from 'pg';
 const { Pool } = pkg;
 import * as schema from '../drizzle/schema.js';
-import { eq, gte, like, or } from 'drizzle-orm';
+import { eq, gte, like, or, sql } from 'drizzle-orm';
 import { courses } from '../drizzle/schema.js';
 
 import studentRouter from '../routes/studentRouter.js';
@@ -118,34 +118,40 @@ app.get('/api/courses', async (req, res) => {
     const pageSize = 6; // Number of courses per page
     console.log('Received filters:', { category, difficulty, rating, search, page });
 
-    let query = {};
-    if (category) query.category = category;
-    if (difficulty) query.difficulty = difficulty;
-    if (rating) query.rating = { $gte: parseFloat(rating) };
+    let query = db.select().from(courses);
+
+    if (category) query = query.where(eq(courses.category, category));
+    if (difficulty) query = query.where(eq(courses.difficulty, difficulty));
+    if (rating) query = query.where(gte(courses.rating, parseFloat(rating)));
     if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-      ];
+      query = query.where(
+        or(
+          like(courses.title, `%${search}%`),
+          like(courses.description, `%${search}%`)
+        )
+      );
     }
 
-    const totalCourses = await Course.countDocuments(query);
-    const totalPages = Math.ceil(totalCourses / pageSize);
+    const totalCoursesQuery = db.select({ count: sql`count(*)` }).from(courses);
+    const [{ count }] = await totalCoursesQuery;
+    const totalPages = Math.ceil(count / pageSize);
 
-    const courses = await Course.find(query)
-      .skip((parseInt(page) - 1) * pageSize)
-      .limit(pageSize);
+    const coursesQuery = query
+      .limit(pageSize)
+      .offset((parseInt(page) - 1) * pageSize);
 
-    console.log('Filtered courses:', courses);
+    const fetchedCourses = await coursesQuery;
+
+    console.log('Filtered courses:', fetchedCourses);
 
     res.json({
-      courses,
+      courses: fetchedCourses,
       currentPage: parseInt(page),
       totalPages,
     });
   } catch (error) {
     console.error('Error fetching courses:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 });
 
