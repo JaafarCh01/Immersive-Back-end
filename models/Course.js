@@ -1,150 +1,95 @@
-import { supabase } from '../src/app.js';
+import { db } from '../src/app.js';
+import { courses, lessons, modules, users, studentProgress, quizzes, tests, testResults, notifications } from '../drizzle/schema.js';
+import { eq, gte } from 'drizzle-orm';
 
 class Course {
-  constructor({ id, title, description }) {
+  constructor({ id, title, description, category, difficulty, rating }) {
     this.id = id;
     this.title = title;
     this.description = description;
+    this.category = category;
+    this.difficulty = difficulty;
+    this.rating = rating;
   }
 
-  static async create({ title, description }) {
-    const { data, error } = await supabase
-      .from('courses')
-      .insert({ title, description })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return new Course(data);
+  static async create({ title, description, category, difficulty, rating }) {
+    const [course] = await db.insert(courses).values({ title, description, category, difficulty, rating }).returning();
+    return new Course(course);
   }
 
   static async findById(id) {
-    const { data, error } = await supabase
-      .from('courses')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (error) throw error;
-    return data ? new Course(data) : null;
+    const [course] = await db.select().from(courses).where(eq(courses.id, id));
+    return course ? new Course(course) : null;
   }
 
-  async update({ title, description }) {
-    const { data, error } = await supabase
-      .from('courses')
-      .update({ title, description })
-      .eq('id', this.id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    Object.assign(this, data);
+  async update({ title, description, category, difficulty, rating }) {
+    const [updatedCourse] = await db.update(courses)
+      .set({ title, description, category, difficulty, rating })
+      .where(eq(courses.id, this.id))
+      .returning();
+    Object.assign(this, updatedCourse);
     return this;
   }
 
   async delete() {
-    const { error } = await supabase
-      .from('courses')
-      .delete()
-      .eq('id', this.id);
-
-    if (error) throw error;
+    await db.delete(courses).where(eq(courses.id, this.id));
   }
 
   async getLessons() {
-    const { data, error } = await supabase
-      .from('lessons')
-      .select('*')
-      .eq('course_id', this.id);
-
-    if (error) throw error;
-    return data;
+    return db.select().from(lessons).where(eq(lessons.courseId, this.id));
   }
 
   async getStudents() {
-    const { data, error } = await supabase
-      .from('user_courses')
-      .select('user_id')
-      .eq('course_id', this.id);
-
-    if (error) throw error;
-    return data.map(item => item.user_id);
+    const [studentIds] = await db.select({ userId: users.id }).from(users).innerJoin(studentProgress).on(eq(users.id, studentProgress.userId)).where(eq(studentProgress.courseId, this.id));
+    return studentIds.map(item => item.userId);
   }
 
   async addLesson(lessonId) {
-    const { error } = await supabase
-      .from('lessons')
-      .update({ course_id: this.id })
-      .eq('id', lessonId);
-
-    if (error) throw error;
+    await db.update(lessons).set({ courseId: this.id }).where(eq(lessons.id, lessonId));
   }
 
   async removeLesson(lessonId) {
-    const { error } = await supabase
-      .from('lessons')
-      .update({ course_id: null })
-      .eq('id', lessonId)
-      .eq('course_id', this.id);
-
-    if (error) throw error;
+    await db.update(lessons).set({ courseId: null }).where(eq(lessons.id, lessonId));
   }
 
   async getModules() {
-    const { data, error } = await supabase
-      .from('modules')
-      .select('*')
-      .eq('course_id', this.id);
-
-    if (error) throw error;
-    return data;
+    return db.select().from(modules).where(eq(modules.courseId, this.id));
   }
 
   async addModule(moduleId) {
-    const { error } = await supabase
-      .from('modules')
-      .update({ course_id: this.id })
-      .eq('id', moduleId);
-
-    if (error) throw error;
+    await db.update(modules).set({ courseId: this.id }).where(eq(modules.id, moduleId));
   }
 
   async removeModule(moduleId) {
-    const { error } = await supabase
-      .from('modules')
-      .update({ course_id: null })
-      .eq('id', moduleId)
-      .eq('course_id', this.id);
-
-    if (error) throw error;
+    await db.update(modules).set({ courseId: null }).where(eq(modules.id, moduleId));
   }
 
   async getOverallProgress(userId) {
-    const progress = await StudentProgress.findByUserAndCourse(userId, this.id);
+    const progress = await db.select().from(studentProgress).where(eq(studentProgress.userId, userId)).where(eq(studentProgress.courseId, this.id));
     const lessons = await this.getLessons();
-    
+
     const completedLessons = progress.filter(p => p.completed).length;
     const totalLessons = lessons.length;
     const completionPercentage = (completedLessons / totalLessons) * 100;
 
-    const quizScores = progress.map(p => p.quiz_score).filter(score => score !== null);
+    const quizScores = progress.map(p => p.quizScore).filter(score => score !== null);
     const averageQuizScore = quizScores.length > 0 ? quizScores.reduce((a, b) => a + b) / quizScores.length : null;
 
     return {
       completedLessons,
       totalLessons,
       completionPercentage,
-      averageQuizScore
+      averageQuizScore,
     };
   }
 
   async notifyStudents(message) {
     const students = await this.getStudents();
-    const notifications = students.map(studentId => 
-      Notification.create({
-        user_id: studentId,
-        message: message,
-        type: 'course'
+    const notifications = students.map(studentId =>
+      db.insert(notifications).values({
+        userId: studentId,
+        message,
+        type: 'course',
       })
     );
     await Promise.all(notifications);

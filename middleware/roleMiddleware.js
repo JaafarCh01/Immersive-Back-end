@@ -1,27 +1,19 @@
-import { supabase } from '../src/app.js';
+import { db } from '../src/app.js';
+import { users } from '../drizzle/schema.js';
+import { eq } from 'drizzle-orm';
 
 const roleMiddleware = (allowedRoles) => {
   return async (req, res, next) => {
     try {
-      const { user } = await supabase.auth.getUser();
+      const [user] = await db.select({ role: users.role })
+        .from(users)
+        .where(eq(users.id, req.user.id));
 
-      if (!user) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-
-      const { data, error } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      if (error) throw error;
-
-      if (!data || !allowedRoles.includes(data.role)) {
+      if (!user || !allowedRoles.includes(user.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      req.user = { ...user, role: data.role };
+      req.user.role = user.role;
       next();
     } catch (error) {
       console.error(error);

@@ -22,11 +22,10 @@ async function isTeacherForCourse(req, res, next) {
 
 
 // Create a new course
-teacherRouter.post('/courses', authMiddleware, roleMiddleware(['teacher']), async (req, res) => {
+teacherRouter.post('/courses', authMiddleware, async (req, res) => {
   try {
-    const course = await Course.create(req.body);
-    await supabase.from('course_teachers').insert({ course_id: course.id, user_id: req.user.id });
-    await course.notifyStudents(`New course available: ${course.title}`);
+    const { title, description, category, difficulty, rating } = req.body;
+    const course = await Course.create({ title, description, category, difficulty, rating });
     res.status(201).json(course);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -34,9 +33,10 @@ teacherRouter.post('/courses', authMiddleware, roleMiddleware(['teacher']), asyn
 });
 
 // Update a course
-teacherRouter.put('/courses/:courseId', authMiddleware, isTeacherForCourse, async (req, res) => {
+teacherRouter.put('/courses/:id', authMiddleware, isTeacherForCourse, async (req, res) => {
   try {
-    const updatedCourse = await req.course.update(req.body);
+    const { title, description, category, difficulty, rating } = req.body;
+    const updatedCourse = await req.course.update({ title, description, category, difficulty, rating });
     res.json(updatedCourse);
   } catch (error) {
     res.status(400).json({ message: error.message });

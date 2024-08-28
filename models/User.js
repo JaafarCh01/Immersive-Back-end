@@ -1,138 +1,43 @@
-import { supabase } from '../src/app.js';
+import { db } from '../src/app.js';
+import { users, courses } from '../drizzle/schema.js';
+import { eq } from 'drizzle-orm';
 
 class User {
-  constructor({ id, username, email, role, avatar_id }) {
-    this.id = id;
-    this.username = username;
-    this.email = email;
-    this.role = role;
-    this.avatar_id = avatar_id;
+  constructor(data) {
+    Object.assign(this, data);
   }
 
-  static async create({ username, email, password, role = 'STUDENT' }) {
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (authError) throw authError;
-
-    const { data, error } = await supabase
-      .from('users')
-      .insert({ id: authData.user.id, username, email, role })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return new User(data);
+  static async create({ email, password, role = 'student' }) {
+    const [user] = await db.insert(users).values({ email, password, role }).returning();
+    return new User(user);
   }
 
   static async findById(id) {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (error) throw error;
-    return data ? new User(data) : null;
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user ? new User(user) : null;
   }
 
   static async findByEmail(email) {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .single();
-
-    if (error) throw error;
-    return data ? new User(data) : null;
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user ? new User(user) : null;
   }
 
-  async update({ username, email, role }) {
-    const { data, error } = await supabase
-      .from('users')
-      .update({ username, email, role })
-      .eq('id', this.id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    Object.assign(this, data);
+  async update(data) {
+    const [updatedUser] = await db.update(users).set(data).where(eq(users.id, this.id)).returning();
+    Object.assign(this, updatedUser);
     return this;
   }
 
   async delete() {
-    const { error } = await supabase
-      .from('users')
-      .delete()
-      .eq('id', this.id);
-
-    if (error) throw error;
+    await db.delete(users).where(eq(users.id, this.id));
   }
 
   async getCourses() {
-    const { data, error } = await supabase
-      .from('user_courses')
-      .select('course_id')
-      .eq('user_id', this.id);
-
-    if (error) throw error;
-    return data.map(item => item.course_id);
+    return db.select().from(courses).where(eq(courses.userId, this.id));
   }
 
-  async addCourse(courseId) {
-    const { error } = await supabase
-      .from('user_courses')
-      .insert({ user_id: this.id, course_id: courseId });
-
-    if (error) throw error;
-  }
-
-  async removeCourse(courseId) {
-    const { error } = await supabase
-      .from('user_courses')
-      .delete()
-      .eq('user_id', this.id)
-      .eq('course_id', courseId);
-
-    if (error) throw error;
-  }
-
-  async getProgress(courseId) {
-    return StudentProgress.findByUserAndCourse(this.id, courseId);
-  }
-
-  async completeLesson(lessonId, courseId) {
-    const existingProgress = await StudentProgress.findByUserAndCourse(this.id, courseId);
-    const lessonProgress = existingProgress.find(p => p.lesson_id === lessonId);
-
-    if (lessonProgress) {
-      return await lessonProgress.update({ completed: true });
-    } else {
-      return await StudentProgress.create({
-        user_id: this.id,
-        course_id: courseId,
-        lesson_id: lessonId,
-        completed: true
-      });
-    }
-  }
-
-  async submitQuizScore(lessonId, courseId, score) {
-    const existingProgress = await StudentProgress.findByUserAndCourse(this.id, courseId);
-    const lessonProgress = existingProgress.find(p => p.lesson_id === lessonId);
-
-    if (lessonProgress) {
-      return await lessonProgress.update({ quiz_score: score });
-    } else {
-      return await StudentProgress.create({
-        user_id: this.id,
-        course_id: courseId,
-        lesson_id: lessonId,
-        quiz_score: score
-      });
-    }
+  async enrollInCourse(courseId) {
+    await db.insert(courses).values({ id: courseId, userId: this.id });
   }
 }
 

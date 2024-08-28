@@ -1,47 +1,32 @@
-import { supabase } from '../src/app.js';
+import { db } from '../src/app.js';
+import { studentProgress } from '../drizzle/schema.js';
+import { eq, and } from 'drizzle-orm';
 
 class StudentProgress {
-  constructor({ id, user_id, course_id, lesson_id, completed, quiz_score }) {
-    this.id = id;
-    this.user_id = user_id;
-    this.course_id = course_id;
-    this.lesson_id = lesson_id;
-    this.completed = completed;
-    this.quiz_score = quiz_score;
-  }
-
-  static async create({ user_id, course_id, lesson_id, completed = false, quiz_score = null }) {
-    const { data, error } = await supabase
-      .from('student_progress')
-      .insert({ user_id, course_id, lesson_id, completed, quiz_score })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return new StudentProgress(data);
-  }
-
-  static async findByUserAndCourse(user_id, course_id) {
-    const { data, error } = await supabase
-      .from('student_progress')
-      .select('*')
-      .eq('user_id', user_id)
-      .eq('course_id', course_id);
-
-    if (error) throw error;
-    return data.map(progress => new StudentProgress(progress));
-  }
-
-  async update({ completed, quiz_score }) {
-    const { data, error } = await supabase
-      .from('student_progress')
-      .update({ completed, quiz_score })
-      .eq('id', this.id)
-      .select()
-      .single();
-
-    if (error) throw error;
+  constructor(data) {
     Object.assign(this, data);
+  }
+
+  static async create({ userId, courseId, lessonId, completed = false, quizScore = null }) {
+    const [progress] = await db.insert(studentProgress)
+      .values({ userId, courseId, lessonId, completed, quizScore })
+      .returning();
+    return new StudentProgress(progress);
+  }
+
+  static async findByUserAndCourse(userId, courseId) {
+    const progress = await db.select()
+      .from(studentProgress)
+      .where(and(eq(studentProgress.userId, userId), eq(studentProgress.courseId, courseId)));
+    return progress.map(p => new StudentProgress(p));
+  }
+
+  async update({ completed, quizScore }) {
+    const [updatedProgress] = await db.update(studentProgress)
+      .set({ completed, quizScore })
+      .where(eq(studentProgress.id, this.id))
+      .returning();
+    Object.assign(this, updatedProgress);
     return this;
   }
 }

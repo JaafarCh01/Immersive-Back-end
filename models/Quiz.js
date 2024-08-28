@@ -1,55 +1,34 @@
-import { supabase } from '../src/app.js';
+import { db } from '../src/app.js';
+import { quizzes, lessons } from '../drizzle/schema.js';
+import { eq } from 'drizzle-orm';
 
 class Quiz {
-  constructor({ id, title, lesson_id, questions }) {
-    this.id = id;
-    this.title = title;
-    this.lesson_id = lesson_id;
-    this.questions = questions;
+  constructor(data) {
+    Object.assign(this, data);
   }
 
-  static async create({ title, lesson_id, questions }) {
-    const { data, error } = await supabase
-      .from('quizzes')
-      .insert({ title, lesson_id, questions })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return new Quiz(data);
+  static async create({ title, lessonId, questions }) {
+    const [quiz] = await db.insert(quizzes).values({ title, lessonId, questions }).returning();
+    return new Quiz(quiz);
   }
 
   static async findById(id) {
-    const { data, error } = await supabase
-      .from('quizzes')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (error) throw error;
-    return data ? new Quiz(data) : null;
+    const [quiz] = await db.select().from(quizzes).where(eq(quizzes.id, id));
+    return quiz ? new Quiz(quiz) : null;
   }
 
-  async update({ title, questions }) {
-    const { data, error } = await supabase
-      .from('quizzes')
-      .update({ title, questions })
-      .eq('id', this.id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    Object.assign(this, data);
+  async update(data) {
+    const [updatedQuiz] = await db.update(quizzes).set(data).where(eq(quizzes.id, this.id)).returning();
+    Object.assign(this, updatedQuiz);
     return this;
   }
 
   async delete() {
-    const { error } = await supabase
-      .from('quizzes')
-      .delete()
-      .eq('id', this.id);
+    await db.delete(quizzes).where(eq(quizzes.id, this.id));
+  }
 
-    if (error) throw error;
+  async getLesson() {
+    return db.select().from(lessons).where(eq(lessons.id, this.lessonId));
   }
 }
 

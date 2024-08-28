@@ -1,4 +1,4 @@
-import { supabase } from '../src/app.js';
+
 
 class Avatar {
   constructor({ id, image_path, user_id }) {

@@ -1,47 +1,33 @@
-import { supabase } from '../src/app.js';
+import { db } from '../src/app.js';
+import { notifications } from '../drizzle/schema.js';
+import { eq, desc } from 'drizzle-orm';
 
 class Notification {
-  constructor({ id, user_id, message, type, read, created_at }) {
-    this.id = id;
-    this.user_id = user_id;
-    this.message = message;
-    this.type = type;
-    this.read = read;
-    this.created_at = created_at;
+  constructor(data) {
+    Object.assign(this, data);
   }
 
-  static async create({ user_id, message, type }) {
-    const { data, error } = await supabase
-      .from('notifications')
-      .insert({ user_id, message, type, read: false })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return new Notification(data);
+  static async create({ userId, message, type }) {
+    const [notification] = await db.insert(notifications)
+      .values({ userId, message, type, read: false })
+      .returning();
+    return new Notification(notification);
   }
 
-  static async findByUser(user_id) {
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', user_id)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    return data.map(notification => new Notification(notification));
+  static async findByUser(userId) {
+    const notificationList = await db.select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt));
+    return notificationList.map(notification => new Notification(notification));
   }
 
   async markAsRead() {
-    const { data, error } = await supabase
-      .from('notifications')
-      .update({ read: true })
-      .eq('id', this.id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    Object.assign(this, data);
+    const [updatedNotification] = await db.update(notifications)
+      .set({ read: true })
+      .where(eq(notifications.id, this.id))
+      .returning();
+    Object.assign(this, updatedNotification);
     return this;
   }
 }

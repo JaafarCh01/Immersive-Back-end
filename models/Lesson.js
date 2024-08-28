@@ -1,115 +1,55 @@
-import { supabase } from '../src/app.js';
+import { db } from '../src/app.js';
+import { lessons, modules, courses } from '../drizzle/schema.js';
+import { eq } from 'drizzle-orm';
+import Course from './Course.js';
 
 class Lesson {
-  constructor({ id, title, content, course_id, module_id }) {
-    this.id = id;
-    this.title = title;
-    this.content = content;
-    this.course_id = course_id;
-    this.module_id = module_id;
+  constructor(data) {
+    Object.assign(this, data);
   }
 
-  static async create({ title, content, course_id, module_id }) {
-    const { data, error } = await supabase
-      .from('lessons')
-      .insert({ title, content, course_id, module_id })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return new Lesson(data);
-  }
-
-  static async createForCourse(courseId, { title, content, module_id }) {
-    const { data, error } = await supabase
-      .from('lessons')
-      .insert({ title, content, course_id: courseId, module_id })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return new Lesson(data);
+  static async create({ title, content, courseId, moduleId = null }) {
+    const [lesson] = await db.insert(lessons)
+      .values({ title, content, courseId, moduleId })
+      .returning();
+    return new Lesson(lesson);
   }
 
   static async findById(id) {
-    const { data, error } = await supabase
-      .from('lessons')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (error) throw error;
-    return data ? new Lesson(data) : null;
+    const [lesson] = await db.select().from(lessons).where(eq(lessons.id, id));
+    return lesson ? new Lesson(lesson) : null;
   }
 
-  static async findByCourse(course_id) {
-    const { data, error } = await supabase
-      .from('lessons')
-      .select('*')
-      .eq('course_id', course_id);
-
-    if (error) throw error;
-    return data.map(lesson => new Lesson(lesson));
-  }
-
-  async update({ title, content }) {
-    const { data, error } = await supabase
-      .from('lessons')
-      .update({ title, content })
-      .eq('id', this.id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    Object.assign(this, data);
+  async update(data) {
+    const [updatedLesson] = await db.update(lessons)
+      .set(data)
+      .where(eq(lessons.id, this.id))
+      .returning();
+    Object.assign(this, updatedLesson);
     return this;
   }
 
   async delete() {
-    const { error } = await supabase
-      .from('lessons')
-      .delete()
-      .eq('id', this.id);
-
-    if (error) throw error;
-  }
-
-  async getCourse() {
-    const { data, error } = await supabase
-      .from('courses')
-      .select('*')
-      .eq('id', this.course_id)
-      .single();
-
-    if (error) throw error;
-    return new Course(data);
+    await db.delete(lessons).where(eq(lessons.id, this.id));
   }
 
   async getModule() {
-    if (!this.module_id) return null;
-    const { data, error } = await supabase
-      .from('modules')
-      .select('*')
-      .eq('id', this.module_id)
-      .single();
-
-    if (error) throw error;
-    return data ? new Module(data) : null;
+    if (!this.moduleId) return null;
+    const [module] = await db.select().from(modules).where(eq(modules.id, this.moduleId));
+    return module;
   }
 
-  async getQuizzes() {
-    const { data, error } = await supabase
-      .from('quizzes')
-      .select('*')
-      .eq('lesson_id', this.id);
-
-    if (error) throw error;
-    return data.map(quiz => new Quiz(quiz));
+  async getCourse() {
+    const [course] = await db.select().from(courses).where(eq(courses.id, this.courseId));
+    return course ? new Course(course) : null;
   }
 
-  async notifyStudents(message) {
-    const course = await this.getCourse();
-    await course.notifyStudents(message);
+  async setModule(moduleId) {
+    await this.update({ moduleId });
+  }
+
+  async removeFromModule() {
+    await this.update({ moduleId: null });
   }
 }
 

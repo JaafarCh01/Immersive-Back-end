@@ -1,77 +1,48 @@
-import { supabase } from '../src/app.js';
+import { db } from '../src/app.js';
+import { tests, testResults } from '../drizzle/schema.js';
+import { eq } from 'drizzle-orm';
 
 class Test {
-  constructor({ id, title, course_id }) {
-    this.id = id;
-    this.title = title;
-    this.course_id = course_id;
+  constructor(data) {
+    Object.assign(this, data);
   }
 
-  static async create({ title, course_id }) {
-    const { data, error } = await supabase
-      .from('tests')
-      .insert({ title, course_id })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return new Test(data);
+  static async create({ title, courseId }) {
+    const [test] = await db.insert(tests).values({ title, courseId }).returning();
+    return new Test(test);
   }
 
   static async findById(id) {
-    const { data, error } = await supabase
-      .from('tests')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (error) throw error;
-    return data ? new Test(data) : null;
+    const [test] = await db.select().from(tests).where(eq(tests.id, id));
+    return test ? new Test(test) : null;
   }
 
-  async update({ title }) {
-    const { data, error } = await supabase
-      .from('tests')
-      .update({ title })
-      .eq('id', this.id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    Object.assign(this, data);
+  async update(data) {
+    const [updatedTest] = await db.update(tests).set(data).where(eq(tests.id, this.id)).returning();
+    Object.assign(this, updatedTest);
     return this;
   }
 
   async delete() {
-    const { error } = await supabase
-      .from('tests')
-      .delete()
-      .eq('id', this.id);
-
-    if (error) throw error;
+    await db.delete(tests).where(eq(tests.id, this.id));
   }
 
   async addResult(userId, score) {
-    const { error } = await supabase
-      .from('test_results')
-      .insert({ test_id: this.id, user_id: userId, score });
-
-    if (error) throw error;
+    await db.insert(testResults).values({ testId: this.id, userId, score });
   }
 
   async getResults() {
-    const { data, error } = await supabase
-      .from('test_results')
-      .select('*')
-      .eq('test_id', this.id);
-
-    if (error) throw error;
-    return data;
+    return db.select().from(testResults).where(eq(testResults.testId, this.id));
   }
 
   async notifyStudents(message) {
     const course = await this.getCourse();
     await course.notifyStudents(message);
+  }
+
+  async getCourse() {
+    const [course] = await db.select().from(courses).where(eq(courses.id, this.courseId));
+    return course ? new Course(course) : null;
   }
 }
 

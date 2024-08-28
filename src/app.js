@@ -1,33 +1,34 @@
 import express from 'express';
 import authRouter from "./auth.js";
 import dotenv from 'dotenv';
-import cors from 'cors'; 
-import { createClient } from '@supabase/supabase-js';
+import cors from 'cors';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import pkg from 'pg';
+const { Pool } = pkg;
+import * as schema from '../drizzle/schema.js';
+import { eq } from 'drizzle-orm';
+import { courses } from '../drizzle/schema.js';
+
 import studentRouter from '../routes/studentRouter.js';
+
 import adminRouter from '../routes/adminRouter.js';
 
 dotenv.config();
-const supabaseUrl = "https://fkgrhxulpnjmtwswiudx.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZrZ3JoeHVscG5qbXR3c3dpdWR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjQwNzI2MzAsImV4cCI6MjAzOTY0ODYzMH0.xuHWZWNU05HVxCRu5S6rMBdYK9ocBRygGhypwWE-I7E";
-const supabase = createClient(supabaseUrl, supabaseKey);
 
-supabase.auth.getSession().then(({ data, error }) => {
-  if (error) {
-    console.error('Error connecting to Supabase:', error.message);
-  } else {
-    console.log('Supabase connected successfully');
-  }
-}).catch(err => {
-  console.error('Unexpected error during Supabase connection:', err);
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
 });
+
+const db = drizzle(pool, { schema });
+
+// Remove the $connect() call
+console.log('Database connection established');
 
 const app = express();
 const PORT = 3000;
 
-
 app.use(cors());
 app.use(express.json());
-
 
 app.get('/api/avatar', (req, res) => {
   const { name = 'User', color = 'FFFFFF', background = '000000' } = req.query;
@@ -50,7 +51,7 @@ app.use("/api/v1/auth", authRouter);
 
 app.get('/api/test-supabase', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('test_table')
       .select('*')
       .limit(1);
@@ -69,11 +70,65 @@ app.get('/api/test-supabase', async (req, res) => {
   }
 });
 
+// Use the studentRouter
 app.use('/student', studentRouter);
+
 app.use('/api/admin', adminRouter);
+
+app.get('/api/courses/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const course = await db.select().from(courses).where(eq(courses.id, parseInt(id))).limit(1);
+
+    if (course.length > 0) {
+      res.json(course[0]);
+    } else {
+      res.status(404).json({ message: 'Course not found' });
+    }
+  } catch (error) {
+    console.error('Error fetching course:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+app.post('/api/courses', async (req, res) => {
+  try {
+    const { title, description } = req.body;
+    console.log('Received course data:', { title, description });
+    const course = await db
+      .insert('courses')
+      .values({ title, description })
+      .returning();
+    console.log('Created course:', course);
+    res.status(201).json(course);
+  } catch (error) {
+    console.error('Error creating course:', error);
+    res.status(500).json({ 
+      message: 'Internal server error', 
+      error: error.message,
+      stack: error.stack,
+      supabaseError: error.supabaseError || 'No Supabase error details available'
+    });
+  }
+});
+
+app.get('/api/courses', async (req, res) => {
+  try {
+    const allCourses = await db.select().from(courses);
+    res.json(allCourses);
+  } catch (error) {
+    console.error('Error fetching courses:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ message: 'Internal server error', error: err.message });
+});
 
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });
 
-export { app as default, supabase };
+export { app as default, db };
