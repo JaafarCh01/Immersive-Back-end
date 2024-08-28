@@ -6,7 +6,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import pkg from 'pg';
 const { Pool } = pkg;
 import * as schema from '../drizzle/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, gte, like, or } from 'drizzle-orm';
 import { courses } from '../drizzle/schema.js';
 
 import studentRouter from '../routes/studentRouter.js';
@@ -114,8 +114,35 @@ app.post('/api/courses', async (req, res) => {
 
 app.get('/api/courses', async (req, res) => {
   try {
-    const allCourses = await db.select().from(courses);
-    res.json(allCourses);
+    const { category, difficulty, rating, search, page = 1 } = req.query;
+    const pageSize = 6; // Number of courses per page
+    console.log('Received filters:', { category, difficulty, rating, search, page });
+
+    let query = {};
+    if (category) query.category = category;
+    if (difficulty) query.difficulty = difficulty;
+    if (rating) query.rating = { $gte: parseFloat(rating) };
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const totalCourses = await Course.countDocuments(query);
+    const totalPages = Math.ceil(totalCourses / pageSize);
+
+    const courses = await Course.find(query)
+      .skip((parseInt(page) - 1) * pageSize)
+      .limit(pageSize);
+
+    console.log('Filtered courses:', courses);
+
+    res.json({
+      courses,
+      currentPage: parseInt(page),
+      totalPages,
+    });
   } catch (error) {
     console.error('Error fetching courses:', error);
     res.status(500).json({ message: 'Internal server error' });

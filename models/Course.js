@@ -17,6 +17,27 @@ class Course {
     return new Course(course);
   }
 
+  static async findAll({ category, difficulty, rating }) {
+    let query = db.select().from(courses);
+    
+    console.log('Received filters:', { category, difficulty, rating });
+
+    if (category) {
+      query = query.where(eq(courses.category, category));
+    }
+    if (difficulty) {
+      query = query.where(eq(courses.difficulty, difficulty));
+    }
+    if (rating) {
+      query = query.where(gte(courses.rating, parseFloat(rating)));
+    }
+    
+    console.log('Executing query:', query.toSQL());
+    const result = await query;
+    console.log('Query result:', result);
+    return result;
+  }
+
   static async findById(id) {
     const [course] = await db.select().from(courses).where(eq(courses.id, id));
     return course ? new Course(course) : null;
