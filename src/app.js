@@ -49,6 +49,25 @@ app.use('/api/teacher', teacherRouter);
 
 app.use("/api/v1/auth", authRouter);
 
+app.post("/api/v1/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findByEmail(email);
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
+    const isPasswordValid = await user.comparePassword(password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
+    const token = generateToken(user);
+    res.json({ user: { id: user.id, email: user.email, role: user.role }, token });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'An error occurred during login' });
+  }
+});
+
 app.get('/api/test-supabase', async (req, res) => {
   try {
     const { data, error } = await db
@@ -93,22 +112,21 @@ app.get('/api/courses/:id', async (req, res) => {
 
 app.post('/api/courses', async (req, res) => {
   try {
-    const { title, description } = req.body;
-    console.log('Received course data:', { title, description });
-    const course = await db
-      .insert('courses')
-      .values({ title, description })
-      .returning();
-    console.log('Created course:', course);
+    console.log('Received course data:', req.body);
+    const { title, description, image, category, difficulty, duration, rating } = req.body;
+    const [course] = await db.insert(courses).values({
+      title,
+      description,
+      image,
+      category,
+      difficulty,
+      duration: parseFloat(duration) || 0,
+      rating: parseFloat(rating) || 0
+    }).returning();
     res.status(201).json(course);
   } catch (error) {
     console.error('Error creating course:', error);
-    res.status(500).json({ 
-      message: 'Internal server error', 
-      error: error.message,
-      stack: error.stack,
-      supabaseError: error.supabaseError || 'No Supabase error details available'
-    });
+    res.status(400).json({ message: error.message });
   }
 });
 
@@ -151,7 +169,11 @@ app.get('/api/courses', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching courses:', error);
-    res.status(500).json({ message: 'Internal server error', error: error.message });
+    res.status(500).json({ 
+      message: 'Internal server error', 
+      error: error.message,
+      stack: error.stack 
+    });
   }
 });
 

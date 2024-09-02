@@ -24,20 +24,43 @@ async function isTeacherForCourse(req, res, next) {
 // Create a new course
 teacherRouter.post('/courses', authMiddleware, async (req, res) => {
   try {
-    const { title, description, category, difficulty, rating } = req.body;
-    const course = await Course.create({ title, description, category, difficulty, rating });
+    console.log('Received course data:', req.body);
+    const { title, description, imageUrl, category, difficulty, duration, rating } = req.body;
+    const course = await Course.create({ title, description, imageUrl, category, difficulty, duration, rating });
+    console.log('Created course:', course);
     res.status(201).json(course);
   } catch (error) {
+    console.error('Error creating course:', error);
     res.status(400).json({ message: error.message });
   }
 });
 
 // Update a course
-teacherRouter.put('/courses/:id', authMiddleware, isTeacherForCourse, async (req, res) => {
+teacherRouter.put('/courses/:id', authMiddleware, async (req, res) => {
   try {
+    const { id } = req.params;
     const { title, description, category, difficulty, rating } = req.body;
-    const updatedCourse = await req.course.update({ title, description, category, difficulty, rating });
+    const course = await Course.findById(id);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+    const updatedCourse = await course.update({ title, description, category, difficulty, rating });
     res.json(updatedCourse);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Delete a course
+teacherRouter.delete('/courses/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const course = await Course.findById(id);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+    await course.delete();
+    res.status(204).send();
   } catch (error) {
     res.status(400).json({ message: error.message });
   }

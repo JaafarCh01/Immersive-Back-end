@@ -3,17 +3,30 @@ import { courses, lessons, modules, users, studentProgress, quizzes, tests, test
 import { eq, gte } from 'drizzle-orm';
 
 class Course {
-  constructor({ id, title, description, category, difficulty, rating }) {
+  constructor({ id, title, description, image, category, difficulty, rating, createdAt, updatedAt }) {
     this.id = id;
     this.title = title;
     this.description = description;
+    this.image = image;
     this.category = category;
     this.difficulty = difficulty;
     this.rating = rating;
+    this.createdAt = createdAt;
+    this.updatedAt = updatedAt;
   }
 
-  static async create({ title, description, category, difficulty, rating }) {
-    const [course] = await db.insert(courses).values({ title, description, category, difficulty, rating }).returning();
+  static async create({ title, description, image, category, difficulty, rating }) {
+    if (!title || !description) {
+      throw new Error('Title and description are required');
+    }
+    const [course] = await db.insert(courses).values({
+      title,
+      description,
+      image,
+      category,
+      difficulty,
+      rating: parseFloat(rating) || 0
+    }).returning();
     return new Course(course);
   }
 

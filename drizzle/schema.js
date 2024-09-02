@@ -1,15 +1,15 @@
-import { pgTable, serial, text, timestamp, integer, boolean, json, foreignKey, numeric } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, timestamp, integer, varchar, numeric, boolean, json } from 'drizzle-orm/pg-core';
 
 export const courses = pgTable('courses', {
   id: serial('id').primaryKey(),
   title: text('title').notNull(),
   description: text('description').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
   image: text('image'),
   category: text('category'),
   difficulty: text('difficulty'),
-  rating: numeric('rating'),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow()
+  rating: numeric('rating')
 });
 
 export const lessons = pgTable('lessons', {

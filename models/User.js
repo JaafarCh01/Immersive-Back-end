@@ -39,6 +39,11 @@ class User {
   async enrollInCourse(courseId) {
     await db.insert(courses).values({ id: courseId, userId: this.id });
   }
+
+  async comparePassword(password) {
+    // In a real application, you should use bcrypt to compare hashed passwords
+    return this.password === password;
+  }
 }
 
 export default User;
