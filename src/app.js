@@ -90,7 +90,7 @@ app.get('/api/test-supabase', async (req, res) => {
 });
 
 // Use the studentRouter
-app.use('/student', studentRouter);
+app.use('/api/student', studentRouter);
 
 app.use('/api/admin', adminRouter);
 

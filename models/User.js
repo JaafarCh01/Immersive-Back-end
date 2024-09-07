@@ -1,6 +1,7 @@
 import { db } from '../src/app.js';
 import { users, courses } from '../drizzle/schema.js';
 import { eq } from 'drizzle-orm';
+import Enrollment from './Enrollment.js';
 
 class User {
   constructor(data) {
@@ -37,7 +38,11 @@ class User {
   }
 
   async enrollInCourse(courseId) {
-    await db.insert(courses).values({ id: courseId, userId: this.id });
+    const existingEnrollment = await Enrollment.findByUserAndCourse(this.id, courseId);
+    if (existingEnrollment) {
+      throw new Error('User is already enrolled in this course');
+    }
+    return await Enrollment.create({ userId: this.id, courseId });
   }
 
   async comparePassword(password) {

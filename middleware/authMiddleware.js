@@ -1,27 +1,28 @@
 import jwt from 'jsonwebtoken';
-import { db } from '../src/app.js';
-import { users } from '../drizzle/schema.js';
-import { eq } from 'drizzle-orm';
+import User from '../models/User.js';
 
 const authMiddleware = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) {
-      return res.status(401).json({ message: "Not authenticated" });
+      return res.status(401).json({ message: 'Authentication required' });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const [user] = await db.select().from(users).where(eq(users.id, decoded.id));
+    console.log('Decoded token:', decoded);  // Add this line
+
+    const user = await User.findById(decoded.id);  // Change 'userId' to 'id'
+    console.log('Found user:', user);  // Add this line
 
     if (!user) {
-      return res.status(401).json({ message: "User not found" });
+      return res.status(401).json({ message: 'User not found' });
     }
 
     req.user = user;
     next();
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error" });
+    console.error('Auth error:', error);
+    res.status(401).json({ message: 'Invalid or expired token' });
   }
 };
 

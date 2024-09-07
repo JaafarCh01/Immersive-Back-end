@@ -77,3 +77,10 @@ export const activityLogs = pgTable('activity_logs', {
   action: text('action').notNull(),
   createdAt: timestamp('created_at').defaultNow()
 });
+
+export const enrollments = pgTable('enrollments', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id),
+  courseId: integer('course_id').notNull().references(() => courses.id),
+  enrolledAt: timestamp('enrolled_at').defaultNow()
+});
