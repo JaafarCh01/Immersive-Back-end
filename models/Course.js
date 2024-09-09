@@ -3,7 +3,7 @@ import { courses, lessons, modules, users, studentProgress, quizzes, tests, test
 import { eq, gte } from 'drizzle-orm';
 
 class Course {
-  constructor({ id, title, description, image, category, difficulty, rating, createdAt, updatedAt }) {
+  constructor({ id, title, description, image, category, difficulty, rating, modelUrl, createdAt, updatedAt }) {
     this.id = id;
     this.title = title;
     this.description = description;
@@ -11,11 +11,12 @@ class Course {
     this.category = category;
     this.difficulty = difficulty;
     this.rating = rating;
+    this.modelUrl = modelUrl;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
 
-  static async create({ title, description, image, category, difficulty, rating }) {
+  static async create({ title, description, image, category, difficulty, rating, modelUrl }) {
     if (!title || !description) {
       throw new Error('Title and description are required');
     }
@@ -25,7 +26,8 @@ class Course {
       image,
       category,
       difficulty,
-      rating: parseFloat(rating) || 0
+      rating: parseFloat(rating) || 0,
+      modelUrl
     }).returning();
     return new Course(course);
   }

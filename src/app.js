@@ -113,7 +113,7 @@ app.get('/api/courses/:id', async (req, res) => {
 app.post('/api/courses', async (req, res) => {
   try {
     console.log('Received course data:', req.body);
-    const { title, description, image, category, difficulty, duration, rating } = req.body;
+    const { title, description, image, category, difficulty, duration, rating, modelUrl } = req.body;
     const [course] = await db.insert(courses).values({
       title,
       description,
@@ -121,7 +121,8 @@ app.post('/api/courses', async (req, res) => {
       category,
       difficulty,
       duration: parseFloat(duration) || 0,
-      rating: parseFloat(rating) || 0
+      rating: parseFloat(rating) || 0,
+      modelUrl
     }).returning();
     res.status(201).json(course);
   } catch (error) {

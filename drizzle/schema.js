@@ -9,7 +9,8 @@ export const courses = pgTable('courses', {
   image: text('image'),
   category: text('category'),
   difficulty: text('difficulty'),
-  rating: numeric('rating')
+  rating: numeric('rating'),
+  modelUrl: text('model_url')  // Add this line
 });
 
 export const lessons = pgTable('lessons', {
